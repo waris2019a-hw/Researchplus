@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Research+ by Waris.R - Research Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .drawer-transition { transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease; }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 0.5rem; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen pb-24 antialiased selection:bg-indigo-100 selection:text-indigo-800">
+  <div class="max-w-xl mx-auto min-h-screen bg-white shadow-sm border-x border-slate-100 flex flex-col">
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-indigo-200">
+            <i class="fa-solid fa-graduation-cap text-base"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-base tracking-tight text-slate-800 leading-none">Research+ by Waris.R</h1>
+            <p class="text-[11px] text-slate-400 font-medium mt-0.5">Open Research Discovery</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="tab-search-btn" onclick="switchMainTab('search')" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 transition-colors">ค้นหา</button>
+          <button id="tab-library-btn" onclick="switchMainTab('library')" class="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 relative transition-colors">
+            คลังของฉัน
+            <span id="saved-badge" class="ml-1 inline-flex items-center justify-center px-1.5 py-0.2 text-[10px] font-bold text-white bg-indigo-500 rounded-full">0</span>
+          </button>
+          <div id="user-section"></div>
+        </div>
+      </div>
+      <div id="search-control-container" class="mt-3">
+        <div class="relative flex items-center">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+          <input type="text" id="search-input" placeholder="ค้นหางานวิจัย... (เช่น AI, Quantum, Climate)"
+            class="w-full pl-9 pr-20 py-2.5 bg-slate-100/90 text-sm text-slate-800 placeholder-slate-400 rounded-2xl border border-transparent focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
+            onkeydown="if(event.key==='Enter') executeSearch()">
+          <div class="absolute right-2 flex items-center gap-1">
+            <button id="clear-search-btn" onclick="clearSearch()" class="hidden w-6 h-6 rounded-full text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button onclick="openFilterDrawer()" class="h-8 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-indigo-600 flex items-center gap-1.5 text-xs font-medium shadow-xs active:scale-95 transition-all">
+              <i class="fa-solid fa-sliders text-xs"></i>
+              <span id="filter-indicator" class="w-1.5 h-1.5 rounded-full bg-indigo-600 hidden"></span>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2.5 pb-1">
+          <button onclick="quickSearch('machine learning')" class="tag-chip px-3 py-1 rounded-full text-xs font-medium shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">🤖 Machine Learning</button>
+          <button onclick="quickSearch('CRISPR gene editing')" class="tag-chip px-3 py-1 rounded-full text-xs font-medium shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">🧬 CRISPR</button>
+          <button onclick="quickSearch('climate change')" class="tag-chip px-3 py-1 rounded-full text-xs font-medium shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">🌍 Climate</button>
+          <button onclick="quickSearch('quantum computing')" class="tag-chip px-3 py-1 rounded-full text-xs font-medium shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">⚛️ Quantum</button>
+          <button onclick="quickSearch('renewable energy')" class="tag-chip px-3 py-1 rounded-full text-xs font-medium shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">🌱 Energy</button>
+          <button onclick="toggleOpenAccessQuick()" id="oa-quick-btn" class="px-2.5 py-1 rounded-full text-xs font-medium shrink-0 border border-emerald-300 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-100 transition-all flex items-center gap-1">
+            <i class="fa-solid fa-lock-open text-[10px]"></i> Open Access
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 px-4 py-3">
+      <div id="loading-state" class="hidden space-y-3.5">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80"><div class="skeleton h-4 w-20 mb-2"></div><div class="skeleton h-5 w-full mb-2"></div><div class="skeleton h-3 w-3/4 mb-2"></div><div class="skeleton h-10 w-full"></div></div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80"><div class="skeleton h-4 w-20 mb-2"></div><div class="skeleton h-5 w-full mb-2"></div><div class="skeleton h-3 w-3/4 mb-2"></div><div class="skeleton h-10 w-full"></div></div>
+      </div>
+
+      <div id="results-bar" class="flex items-center justify-between text-xs text-slate-500 mb-3 px-0.5">
+        <span id="results-count-text">พิมพ์คำค้นหาแล้วกด Enter</span>
+        <div class="flex items-center gap-2">
+          <button id="export-csv-btn" onclick="exportCSV()" class="hidden px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold text-[11px] hover:bg-emerald-100 transition flex items-center gap-1">
+            <i class="fa-solid fa-file-csv text-[10px]"></i> Export CSV
+          </button>
+          <div class="flex items-center gap-1 text-slate-600">
+            <span>เรียงโดย:</span>
+            <select id="sort-select" onchange="handleSortChange(this.value)" class="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer py-0.5">
+              <option value="relevance">ความเกี่ยวข้อง</option>
+              <option value="cited_by_count">อ้างอิงสูงสุด</option>
+              <option value="publication_date">ปีล่าสุด</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="papers-list" class="space-y-3.5"></div>
+
+      <div id="load-more-container" class="hidden py-4 text-center">
+        <button onclick="loadMore()" id="load-more-btn" class="px-6 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-semibold hover:bg-indigo-100 transition">โหลดเพิ่มเติม</button>
+      </div>
+
+      <div id="empty-state" class="hidden py-16 text-center">
+        <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-xl"><i class="fa-regular fa-folder-open"></i></div>
+        <h3 class="text-sm font-semibold text-slate-700">ไม่พบงานวิจัยที่ตรงกับเงื่อนไข</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">ลองเปลี่ยนคำค้นหา หรือรีเซ็ตตัวกรอง</p>
+        <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-semibold">รีเซ็ตตัวกรองทั้งหมด</button>
+      </div>
+
+      <div id="welcome-state" class="py-12 text-center">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-500 text-2xl"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+        <h3 class="text-base font-bold text-slate-800 mb-1">ค้นหางานวิจัยจากฐานข้อมูลทั่วโลก</h3>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+          ค้นหาจาก <span class="font-semibold text-indigo-500">OpenAlex</span> ฐานข้อมูลงานวิจัยเปิดกว่า 250 ล้านรายการ<br>
+          ครอบคลุม IEEE, PubMed, arXiv, Semantic Scholar, CrossRef
+        </p>
+        <div class="mt-6 flex flex-wrap justify-center gap-2">
+          <button onclick="quickSearch('machine learning')" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition">machine learning</button>
+          <button onclick="quickSearch('CRISPR')" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition">CRISPR</button>
+          <button onclick="quickSearch('climate change')" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition">climate change</button>
+          <button onclick="quickSearch('quantum computing')" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition">quantum computing</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Filter Drawer -->
+    <div id="filter-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden opacity-0 transition-opacity">
+      <div class="absolute inset-x-0 bottom-0 max-w-xl mx-auto bg-white rounded-t-3xl p-5 shadow-2xl drawer-transition translate-y-full flex flex-col max-h-[85vh]">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <h3 class="font-bold text-base text-slate-800">ตัวกรองการค้นหา</h3>
+          <button onclick="closeFilterDrawer()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="overflow-y-auto py-4 space-y-4 text-xs">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-2">ช่วงปีที่เผยแพร่: <span id="year-val" class="text-indigo-600 font-bold">2020 - 2027</span></label>
+            <input type="range" min="2015" max="2027" value="2020" id="filter-year-min" oninput="updateYearLabel(this.value)" class="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono"><span>2015</span><span>2020</span><span>2027</span></div>
+          </div>
+          <div class="flex items-center justify-between py-2 border-t border-slate-100">
+            <div>
+              <p class="font-semibold text-slate-700">เฉพาะ Open Access เท่านั้น</p>
+              <p class="text-[11px] text-slate-400">บทความที่ดาวน์โหลด PDF ได้ทันที</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="filter-oa-toggle" class="sr-only peer">
+              <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+          <div class="border-t border-slate-100 pt-3">
+            <label class="font-semibold text-slate-700 block mb-2">แหล่งข้อมูล</label>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="dataSource" value="openalex" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>OpenAlex (เปิดกว้าง)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="dataSource" value="semantic" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>Semantic Scholar</span>
+              </label>
+            </div>
+          </div>
+          <div class="border-t border-slate-100 pt-3">
+            <label class="font-semibold text-slate-700 block mb-2">ประเภทเอกสาร</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="docType" value="journal-article" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>Journal Article</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="docType" value="proceedings-article" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>Conference</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="docType" value="review" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>Review</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 border rounded-xl border-slate-200 cursor-pointer text-slate-600">
+                <input type="checkbox" name="docType" value="book-chapter" checked class="rounded text-indigo-600 focus:ring-0">
+                <span>Book Chapter</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="pt-3 border-t border-slate-100 flex gap-2.5">
+          <button onclick="resetFilters()" class="w-1/3 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition">ล้างค่า</button>
+          <button onclick="applyFilters()" class="w-2/3 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-100 hover:bg-indigo-700 transition">ดูผลลัพธ์</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cite Modal -->
+    <div id="cite-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden opacity-0 transition-opacity">
+      <div class="absolute inset-x-0 bottom-0 max-w-xl mx-auto bg-white rounded-t-3xl p-5 shadow-2xl drawer-transition translate-y-full">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
+        <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+          <h3 class="font-bold text-sm text-slate-800">คัดลอกรายการอ้างอิง</h3>
+          <button onclick="closeCiteModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="py-3 space-y-3">
+          <div class="flex gap-2">
+            <button onclick="switchCiteFormat('apa')" id="cite-btn-apa" class="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white">APA 7th</button>
+            <button onclick="switchCiteFormat('mla')" id="cite-btn-mla" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600">MLA 9th</button>
+            <button onclick="switchCiteFormat('bibtex')" id="cite-btn-bibtex" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600">BibTeX</button>
+          </div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <p id="citation-text" class="text-xs text-slate-700 leading-relaxed break-words font-mono pr-6 select-all"></p>
+          </div>
+          <button onclick="copyCitationToClipboard()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition">
+            <i class="fa-regular fa-clone"></i> คัดลอกไปยังคลิปบอร์ด
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden opacity-0 transition-opacity">
+      <div class="absolute inset-x-0 bottom-0 max-w-xl mx-auto bg-white rounded-t-3xl p-5 shadow-2xl drawer-transition translate-y-full max-h-[90vh] flex flex-col">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <span id="detail-badge" class="px-2 py-0.5 rounded text-[10px] font-bold"></span>
+          <button onclick="closeDetailModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="overflow-y-auto py-3 space-y-3 flex-1 text-slate-700 pr-1">
+          <h2 id="detail-title" class="font-bold text-base text-slate-900 leading-snug"></h2>
+          <div class="text-xs text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <p><span class="font-semibold text-slate-700">ผู้แต่ง:</span> <span id="detail-authors"></span></p>
+            <p><span class="font-semibold text-slate-700">วารสาร/ปี:</span> <span id="detail-venue"></span></p>
+            <p><span class="font-semibold text-slate-700">DOI:</span> <span id="detail-doi" class="font-mono text-indigo-600"></span></p>
+            <p><span class="font-semibold text-slate-700">อ้างอิง:</span> <span id="detail-citations" class="text-indigo-600 font-bold"></span></p>
+          </div>
+          <div id="detail-oa-section" class="hidden bg-emerald-50/60 border border-emerald-100 p-3 rounded-xl">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-900 mb-1">
+              <i class="fa-solid fa-lock-open text-emerald-500"></i> Open Access PDF
+            </div>
+            <a id="detail-pdf-link" href="#" target="_blank" class="text-xs text-emerald-700 underline font-medium">เปิด PDF ต้นฉบับ</a>
+          </div>
+          <div>
+            <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wide mb-1">บทคัดย่อ (Abstract)</h4>
+            <p id="detail-abstract" class="text-xs text-slate-600 leading-relaxed text-justify"></p>
+          </div>
+          <div id="detail-concepts" class="hidden">
+            <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wide mb-1">หัวข้อที่เกี่ยวข้อง</h4>
+            <div id="detail-concepts-list" class="flex flex-wrap gap-1.5"></div>
+          </div>
+        </div>
+        <div class="pt-3 border-t border-slate-100 flex gap-2">
+          <button id="detail-cite-action" class="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50">
+            <i class="fa-solid fa-quote-right text-xs"></i> อ้างอิง
+          </button>
+          <a id="detail-open-link" href="#" target="_blank" class="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> เปิดบทความ
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 transform translate-y-20 opacity-0 transition-all pointer-events-none">
+      <i id="toast-icon" class="fa-solid fa-check-circle text-emerald-400"></i>
+      <span id="toast-msg">ข้อความ</span>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    const OPENALEX_API = 'https://api.openalex.org/works';
+    const SEMANTIC_API = 'https://api.semanticscholar.org/graph/v1/paper/search';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBj5TfsLpesX6ytSdVN-k3O0oLbUjpxwLk",
+      authDomain: "testweb2026-ff231.firebaseapp.com",
+      databaseURL: "https://testweb2026-ff231-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "testweb2026-ff231",
+      storageBucket: "testweb2026-ff231.firebasestorage.app",
+      messagingSenderId: "582408484944",
+      appId: "1:582408484944:web:85490a301cde2d21e57955"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function emailToKey(email) {
+      return email.replace(/\./g, '(dot)').replace(/@/g, '(at)');
+    }
+
+    function getCurrentUser() {
+      return JSON.parse(localStorage.getItem('scholar_current_user') || 'null');
+    }
+
+    function getBookmarksRef() {
+      const user = getCurrentUser();
+      if (!user) return null;
+      return db.ref('bookmarks/' + emailToKey(user.email));
+    }
+
+    function paperToKey(paperId) {
+      let hash = 0;
+      for (let i = 0; i < paperId.length; i++) {
+        const chr = paperId.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0;
+      }
+      return 'p' + Math.abs(hash).toString(36);
+    }
+
+    let activeTab = 'search';
+    let currentSearchTerm = '';
+    let filterMinYear = 2020;
+    let filterOpenAccessOnly = false;
+    let selectedDocTypes = ['journal-article', 'proceedings-article', 'review', 'book-chapter'];
+    let sortBy = 'relevance';
+    let activeCitePaper = null;
+    let currentCiteFormat = 'apa';
+    let currentPage = 1;
+    let totalCount = 0;
+    let allResults = [];
+    let isLoading = false;
+    let savedPapers = JSON.parse(localStorage.getItem('scholar_saved_papers') || '[]');
+    let savedPaperData = JSON.parse(localStorage.getItem('scholar_saved_paper_data') || '{}');
+    let useSemantic = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateSavedBadge();
+      renderUserSection();
+      loadBookmarksFromFirebase().then(() => {
+        if (activeTab === 'library') renderLibrary();
+      });
+    });
+
+    function renderUserSection() {
+      const userSection = document.getElementById('user-section');
+      const user = JSON.parse(localStorage.getItem('scholar_current_user') || 'null');
+      if (user) {
+        const initial = (user.displayName || user.email || '?')[0].toUpperCase();
+        userSection.innerHTML = `
+          <button onclick="showUserMenu()" class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center hover:bg-indigo-200 transition">${initial}</button>
+          <div id="user-menu" class="hidden absolute right-4 top-14 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50 w-56">
+            <div class="flex items-center gap-2.5 mb-3 pb-3 border-b border-slate-100">
+              <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center">${initial}</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-800 truncate">${user.displayName || 'User'}</p>
+                <p class="text-[10px] text-slate-400 truncate">${user.email}</p>
+              </div>
+            </div>
+            <button onclick="handleLogout()" class="w-full py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
+            </button>
+          </div>`;
+      } else {
+        userSection.innerHTML = `<a href="login.html" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition">เข้าสู่ระบบ</a>`;
+      }
+    }
+
+    function showUserMenu() {
+      const menu = document.getElementById('user-menu');
+      menu.classList.toggle('hidden');
+      document.addEventListener('click', function closeMenu(e) {
+        if (!e.target.closest('#user-menu') && !e.target.closest('#user-section')) {
+          menu.classList.add('hidden');
+          document.removeEventListener('click', closeMenu);
+        }
+      });
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('scholar_current_user');
+      showToast('ออกจากระบบแล้ว');
+      setTimeout(() => { window.location.reload(); }, 800);
+    }
+
+    function buildOpenAlexUrl(query, page, perPage = 15) {
+      let url = `${OPENALEX_API}?search=${encodeURIComponent(query)}&per_page=${perPage}&page=${page}`;
+      let filters = [];
+      if (sortBy === 'cited_by_count') url += '&sort=cited_by_count:desc';
+      else if (sortBy === 'publication_date') url += '&sort=publication_date:desc';
+      else url += '&sort=relevance_score:desc';
+      if (filterMinYear > 2015) filters.push(`from_publication_date:${filterMinYear}-01-01`);
+      if (filterOpenAccessOnly) filters.push('is_oa:true');
+      if (selectedDocTypes.length > 0 && selectedDocTypes.length < 4) {
+        const oaMap = { 'journal-article': 'journal-article', 'proceedings-article': 'proceedings-article', 'review': 'review', 'book-chapter': 'book-chapter' };
+        const mapped = selectedDocTypes.map(t => oaMap[t]).filter(Boolean);
+        if (mapped.length > 0) filters.push(`type:${mapped.join('|')}`);
+      }
+      if (filters.length > 0) url += '&filter=' + filters.join(',');
+      url += '&mailto=scholarpulse@research.app';
+      return url;
+    }
+
+    async function fetchFromOpenAlex(query, page = 1) {
+      const url = buildOpenAlexUrl(query, page);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`OpenAlex API error: ${resp.status}`);
+      const data = await resp.json();
+      totalCount = data.meta.count;
+      return (data.results || []).map(w => ({
+        id: w.id,
+        title: w.title || 'Untitled',
+        authors: (w.authorships || []).map(a => a.author?.display_name || 'Unknown').join(', '),
+        year: w.publication_year || 0,
+        venue: w.primary_location?.source?.display_name || '',
+        citations: w.cited_by_count || 0,
+        isOpenAccess: w.open_access?.is_oa || false,
+        pdfUrl: w.open_access?.oa_url || '',
+        doi: w.doi ? w.doi.replace('https://doi.org/', '') : '',
+        abstract: reconstructAbstract(w.abstract_inverted_index),
+        concepts: (w.concepts || []).slice(0, 5).map(c => c.display_name),
+        source: 'openalex',
+        openAlexId: w.id,
+        semanticId: null,
+        type: w.type || '',
+        publicationDate: w.publication_date || ''
+      }));
+    }
+
+    async function fetchFromSemantic(query, limit = 15, offset = 0) {
+      const fields = 'title,authors,year,venue,citationCount,isOpenAccess,openAccessPdf,externalIds,abstract,publicationDate,publicationTypes';
+      let url = `${SEMANTIC_API}?query=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}&fields=${fields}`;
+      if (sortBy === 'cited_by_count') url += '&sort=citationCount:desc';
+      else if (sortBy === 'publication_date') url += '&sort=publicationDate:desc';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Semantic Scholar API error: ${resp.status}`);
+      const data = await resp.json();
+      totalCount = data.total || 0;
+      return (data.data || []).map(p => ({
+        id: p.paperId,
+        title: p.title || 'Untitled',
+        authors: (p.authors || []).map(a => a.name).join(', '),
+        year: p.year || 0,
+        venue: p.venue || '',
+        citations: p.citationCount || 0,
+        isOpenAccess: p.isOpenAccess || false,
+        pdfUrl: p.openAccessPdf?.url || '',
+        doi: p.externalIds?.DOI || '',
+        abstract: p.abstract || '',
+        concepts: [],
+        source: 'semantic',
+        semanticId: p.paperId,
+        openAlexId: null,
+        type: (p.publicationTypes || []).join(', '),
+        publicationDate: p.publicationDate || ''
+      }));
+    }
+
+    async function executeSearch(append = false) {
+      const term = document.getElementById('search-input').value.trim();
+      if (!term) return;
+      currentSearchTerm = term;
+      if (!append) { currentPage = 1; allResults = []; }
+
+      document.getElementById('welcome-state')?.classList.add('hidden');
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('loading-state').classList.remove('hidden');
+      document.getElementById('papers-list').innerHTML = '';
+      document.getElementById('load-more-container').classList.add('hidden');
+      isLoading = true;
+
+      try {
+        let results = [];
+        if (useSemantic) {
+          results = await fetchFromSemantic(term, 15, (currentPage - 1) * 15);
+        } else {
+          results = await fetchFromOpenAlex(term, currentPage);
+        }
+
+        allResults = append ? [...allResults, ...results] : results;
+
+        document.getElementById('loading-state').classList.add('hidden');
+        renderPapers();
+
+        if (totalCount > allResults.length) {
+          document.getElementById('load-more-container').classList.remove('hidden');
+        }
+
+        const countText = document.getElementById('results-count-text');
+        countText.textContent = `พบ ${totalCount.toLocaleString()} ผลงาน "${term}"`;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loading-state').classList.add('hidden');
+        if (allResults.length === 0) {
+          document.getElementById('empty-state').classList.remove('hidden');
+          document.getElementById('results-count-text').textContent = 'เกิดข้อผิดพลาดในการค้นหา';
+        }
+        showToast('ค้นหาไม่สำเร็จ: ' + err.message, 'error');
+      }
+      isLoading = false;
+    }
+
+    function loadMore() {
+      currentPage++;
+      executeSearch(true);
+    }
+
+    function renderPapers() {
+      const listEl = document.getElementById('papers-list');
+      const emptyEl = document.getElementById('empty-state');
+      const papers = allResults;
+
+      if (papers.length === 0 && !isLoading) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      listEl.innerHTML = papers.map((paper, idx) => {
+        const isSaved = savedPapers.includes(paper.id);
+        const accessBadge = paper.isOpenAccess
+          ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-lock-open text-[9px]"></i> Open Access</span>`
+          : `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-lock text-[9px]"></i> Restricted</span>`;
+
+        const srcBadge = paper.source === 'semantic'
+          ? `<span class="text-[9px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-medium border border-violet-200">Semantic Scholar</span>`
+          : `<span class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium border border-blue-200">OpenAlex</span>`;
+
+        return `
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${accessBadge}
+                ${srcBadge}
+                <span class="text-[11px] font-semibold text-slate-400 font-mono">• ${paper.year || 'N/A'}</span>
+              </div>
+              <button onclick="toggleSavePaper('${paper.id}')" class="w-8 h-8 rounded-full flex items-center justify-center ${isSaved ? 'text-rose-500 bg-rose-50' : 'text-slate-400 hover:text-slate-700 bg-slate-50'} active:scale-90 transition">
+                <i class="${isSaved ? 'fa-solid' : 'fa-regular'} fa-bookmark text-sm"></i>
+              </button>
+            </div>
+            <h3 onclick="openDetailModal('${idx}')" class="font-bold text-slate-900 text-sm leading-snug cursor-pointer hover:text-indigo-600 transition">${highlightSearch(paper.title, currentSearchTerm)}</h3>
+            <p class="text-xs text-slate-500 mt-1 line-clamp-1"><i class="fa-regular fa-user text-[11px] mr-1 text-slate-400"></i> ${paper.authors || 'Unknown authors'}</p>
+            ${paper.venue ? `<p class="text-[11px] text-slate-400 italic mt-0.5 line-clamp-1">${paper.venue}</p>` : ''}
+            ${paper.abstract ? `<p class="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed bg-slate-50/70 p-2 rounded-xl">${paper.abstract}</p>` : ''}
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-1 text-slate-500 font-medium text-[11px]">
+                <i class="fa-solid fa-quote-left text-slate-400 text-[10px]"></i>
+                <span>${paper.citations.toLocaleString()} ครั้งที่อ้างอิง</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="event.stopPropagation();openCiteModal('${idx}')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs flex items-center gap-1 transition">
+                  <i class="fa-solid fa-quote-right text-[10px]"></i> อ้างอิง
+                </button>
+                <button onclick="event.stopPropagation();openDetailModal('${idx}')" class="px-3 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs flex items-center gap-1 transition">
+                  ดูรายละเอียด <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function reconstructAbstract(invIndex) {
+      if (!invIndex) return '';
+      const words = {};
+      for (const [word, positions] of Object.entries(invIndex)) {
+        for (const pos of positions) { words[pos] = word; }
+      }
+      const maxPos = Math.max(...Object.keys(words).map(Number));
+      let result = '';
+      for (let i = 0; i <= maxPos; i++) {
+        if (words[i]) result += (result ? ' ' : '') + words[i];
+      }
+      return result;
+    }
+
+    function highlightSearch(text, term) {
+      if (!term || !term.trim()) return text;
+      const regex = new RegExp(`(${term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, `<mark class="bg-amber-100 text-slate-900 rounded-xs px-0.5 font-bold">$1</mark>`);
+    }
+
+    function quickSearch(term) {
+      document.getElementById('search-input').value = term;
+      executeSearch();
+    }
+
+    function clearSearch() {
+      document.getElementById('search-input').value = '';
+      currentSearchTerm = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      document.getElementById('welcome-state')?.classList.remove('hidden');
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('load-more-container').classList.add('hidden');
+      document.getElementById('papers-list').innerHTML = '';
+      document.getElementById('results-count-text').textContent = 'พิมพ์คำค้นหาแล้วกด Enter';
+    }
+
+    function toggleOpenAccessQuick() {
+      filterOpenAccessOnly = !filterOpenAccessOnly;
+      const btn = document.getElementById('oa-quick-btn');
+      const drawerToggle = document.getElementById('filter-oa-toggle');
+      drawerToggle.checked = filterOpenAccessOnly;
+      if (filterOpenAccessOnly) {
+        btn.classList.remove('bg-emerald-50/70', 'text-emerald-700');
+        btn.classList.add('bg-emerald-600', 'text-white');
+        showToast('กรองเฉพาะ Open Access');
+      } else {
+        btn.classList.remove('bg-emerald-600', 'text-white');
+        btn.classList.add('bg-emerald-50/70', 'text-emerald-700');
+      }
+      if (currentSearchTerm) executeSearch();
+    }
+
+    function switchMainTab(tab) {
+      activeTab = tab;
+      const searchBtn = document.getElementById('tab-search-btn');
+      const libBtn = document.getElementById('tab-library-btn');
+      const searchContainer = document.getElementById('search-control-container');
+      const exportBtn = document.getElementById('export-csv-btn');
+      if (tab === 'search') {
+        searchBtn.classList.add('bg-indigo-50', 'text-indigo-600');
+        searchBtn.classList.remove('text-slate-500');
+        libBtn.classList.remove('bg-indigo-50', 'text-indigo-600');
+        libBtn.classList.add('text-slate-500');
+        searchContainer.classList.remove('hidden');
+        exportBtn.classList.add('hidden');
+        renderPapers();
+      } else {
+        libBtn.classList.add('bg-indigo-50', 'text-indigo-600');
+        libBtn.classList.remove('text-slate-500');
+        searchBtn.classList.remove('bg-indigo-50', 'text-indigo-600');
+        searchBtn.classList.add('text-slate-500');
+        searchContainer.classList.add('hidden');
+        exportBtn.classList.remove('hidden');
+        renderLibrary();
+      }
+    }
+
+    async function renderLibrary() {
+      await loadBookmarksFromFirebase();
+      allResults = savedPapers.map(id => savedPaperData[id]).filter(Boolean);
+      totalCount = allResults.length;
+      document.getElementById('results-count-text').textContent = `บทความที่บันทึกไว้ (${allResults.length})`;
+      document.getElementById('welcome-state')?.classList.add('hidden');
+      renderPapers();
+    }
+
+    function exportCSV() {
+      const papers = allResults;
+      if (papers.length === 0) {
+        showToast('ไม่มีข้อมูลให้ Export', 'error');
+        return;
+      }
+
+      const BOM = '\uFEFF';
+      const headers = ['Title', 'Authors', 'Year', 'Venue', 'Citations', 'Open Access', 'DOI', 'Abstract', 'PDF URL'];
+      const rows = papers.map(p => [
+        '"' + (p.title || '').replace(/"/g, '""') + '"',
+        '"' + (p.authors || '').replace(/"/g, '""') + '"',
+        p.year || '',
+        '"' + (p.venue || '').replace(/"/g, '""') + '"',
+        p.citations || 0,
+        p.isOpenAccess ? 'Yes' : 'No',
+        p.doi || '',
+        '"' + (p.abstract || '').replace(/"/g, '""').replace(/\n/g, ' ') + '"',
+        p.pdfUrl || ''
+      ]);
+
+      const csvContent = BOM + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'scholarpulse_library_' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('Export CSV สำเร็จ! (' + papers.length + ' รายการ)');
+    }
+
+    async function toggleSavePaper(id) {
+      const paper = allResults.find(p => p.id === id);
+      const bookmarksRef = getBookmarksRef();
+
+      if (savedPapers.includes(id)) {
+        savedPapers = savedPapers.filter(pId => pId !== id);
+        delete savedPaperData[id];
+        showToast('ลบออกจากคลังแล้ว');
+        if (bookmarksRef) {
+          try {
+            await bookmarksRef.child(paperToKey(id)).remove();
+          } catch (e) { console.error(e); }
+        }
+      } else {
+        savedPapers.push(id);
+        if (paper) savedPaperData[id] = paper;
+        showToast('บันทึกลงคลังเรียบร้อย');
+        if (bookmarksRef && paper) {
+          try {
+            await bookmarksRef.child(paperToKey(id)).set({
+              id: paper.id,
+              title: paper.title,
+              authors: paper.authors,
+              year: paper.year,
+              venue: paper.venue,
+              citations: paper.citations,
+              isOpenAccess: paper.isOpenAccess,
+              pdfUrl: paper.pdfUrl,
+              doi: paper.doi,
+              abstract: paper.abstract,
+              concepts: paper.concepts || [],
+              source: paper.source,
+              savedAt: new Date().toISOString()
+            });
+          } catch (e) { console.error(e); }
+        } else if (!bookmarksRef) {
+          console.log('Not logged in, saving to localStorage only');
+        }
+      }
+      localStorage.setItem('scholar_saved_papers', JSON.stringify(savedPapers));
+      localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
+      updateSavedBadge();
+      if (activeTab === 'search') renderPapers(); else renderLibrary();
+    }
+
+    async function loadBookmarksFromFirebase() {
+      const bookmarksRef = getBookmarksRef();
+      if (!bookmarksRef) return;
+      try {
+        const snapshot = await bookmarksRef.once('value');
+        const data = snapshot.val();
+        if (data) {
+          savedPapers = [];
+          savedPaperData = {};
+          for (const [key, val] of Object.entries(data)) {
+            if (val && val.id) {
+              savedPapers.push(val.id);
+              savedPaperData[val.id] = val;
+            }
+          }
+          localStorage.setItem('scholar_saved_papers', JSON.stringify(savedPapers));
+          localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
+        }
+        updateSavedBadge();
+      } catch (err) {
+        console.error('Error loading bookmarks:', err);
+      }
+    }
+
+    function updateSavedBadge() {
+      document.getElementById('saved-badge').textContent = savedPapers.length;
+    }
+
+    function handleSortChange(val) {
+      sortBy = val;
+      if (currentSearchTerm) executeSearch();
+    }
+
+    function openFilterDrawer() {
+      const modal = document.getElementById('filter-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); sheet.classList.remove('translate-y-full'); }, 10);
+    }
+
+    function closeFilterDrawer() {
+      const modal = document.getElementById('filter-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      sheet.classList.add('translate-y-full');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 280);
+    }
+
+    function updateYearLabel(val) {
+      document.getElementById('year-val').textContent = `${val} - 2027`;
+    }
+
+    function applyFilters() {
+      filterMinYear = parseInt(document.getElementById('filter-year-min').value);
+      filterOpenAccessOnly = document.getElementById('filter-oa-toggle').checked;
+      selectedDocTypes = Array.from(document.querySelectorAll("input[name='docType']:checked")).map(el => el.value);
+      if (selectedDocTypes.length === 0) selectedDocTypes = ['journal-article', 'proceedings-article'];
+      const sources = Array.from(document.querySelectorAll("input[name='dataSource']:checked")).map(el => el.value);
+      useSemantic = sources.includes('semantic') && !sources.includes('openalex');
+      const isFiltered = filterMinYear > 2020 || filterOpenAccessOnly || selectedDocTypes.length < 4;
+      document.getElementById('filter-indicator').classList.toggle('hidden', !isFiltered);
+      closeFilterDrawer();
+      if (currentSearchTerm) executeSearch();
+      showToast('ปรับปรุงตัวกรองเรียบร้อย');
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-year-min').value = 2020;
+      updateYearLabel(2020);
+      filterMinYear = 2020;
+      document.getElementById('filter-oa-toggle').checked = false;
+      filterOpenAccessOnly = false;
+      document.querySelectorAll("input[name='docType']").forEach(i => i.checked = true);
+      selectedDocTypes = ['journal-article', 'proceedings-article', 'review', 'book-chapter'];
+      document.querySelectorAll("input[name='dataSource']").forEach(i => i.checked = true);
+      useSemantic = false;
+      document.getElementById('filter-indicator').classList.add('hidden');
+      document.getElementById('oa-quick-btn').classList.remove('bg-emerald-600', 'text-white');
+      document.getElementById('oa-quick-btn').classList.add('bg-emerald-50/70', 'text-emerald-700');
+      closeFilterDrawer();
+      if (currentSearchTerm) executeSearch();
+    }
+
+    function openCiteModal(idx) {
+      const paper = allResults[idx];
+      if (!paper) return;
+      activeCitePaper = paper;
+      currentCiteFormat = 'apa';
+      switchCiteFormat('apa');
+      const modal = document.getElementById('cite-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); sheet.classList.remove('translate-y-full'); }, 10);
+    }
+
+    function closeCiteModal() {
+      const modal = document.getElementById('cite-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      sheet.classList.add('translate-y-full');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 280);
+    }
+
+    function switchCiteFormat(fmt) {
+      currentCiteFormat = fmt;
+      ['apa', 'mla', 'bibtex'].forEach(f => {
+        document.getElementById(`cite-btn-${f}`).className = "px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600";
+      });
+      document.getElementById(`cite-btn-${fmt}`).className = "px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white";
+      const textEl = document.getElementById('citation-text');
+      const p = activeCitePaper;
+      const authorShort = p.authors ? p.authors.split(',')[0].trim().split(' ').pop() : 'Unknown';
+      if (fmt === 'apa') {
+        textEl.textContent = `${p.authors || 'Unknown'} (${p.year || 'n.d.'}). ${p.title}. ${p.venue || 'N/A'}.${p.doi ? ' https://doi.org/' + p.doi : ''}`;
+      } else if (fmt === 'mla') {
+        textEl.textContent = `${p.authors || 'Unknown'}. "${p.title}." ${p.venue || 'N/A'}, ${p.year || 'n.d.'}.`;
+      } else if (fmt === 'bibtex') {
+        const key = (authorShort + (p.year || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
+        textEl.textContent = `@article{${key},\n  title={${p.title}},\n  author={${p.authors || 'Unknown'}},\n  journal={${p.venue || ''}},\n  year={${p.year || ''}},\n  doi={${p.doi || ''}}\n}`;
+      }
+    }
+
+    function copyCitationToClipboard() {
+      const text = document.getElementById('citation-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('คัดลอก Citation เรียบร้อยแล้ว');
+        closeCiteModal();
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('คัดลอก Citation เรียบร้อยแล้ว');
+        closeCiteModal();
+      });
+    }
+
+    function openDetailModal(idx) {
+      const paper = allResults[idx];
+      if (!paper) return;
+      document.getElementById('detail-title').textContent = paper.title;
+      document.getElementById('detail-authors').textContent = paper.authors || 'Unknown';
+      document.getElementById('detail-venue').textContent = `${paper.venue || 'N/A'} (${paper.year || 'N/A'})`;
+      document.getElementById('detail-doi').textContent = paper.doi || 'N/A';
+      document.getElementById('detail-citations').textContent = paper.citations.toLocaleString() + ' ครั้ง';
+      document.getElementById('detail-abstract').textContent = paper.abstract || 'ไม่มีบทคัดย่อ';
+
+      const oaSection = document.getElementById('detail-oa-section');
+      if (paper.isOpenAccess && paper.pdfUrl) {
+        oaSection.classList.remove('hidden');
+        document.getElementById('detail-pdf-link').href = paper.pdfUrl;
+      } else {
+        oaSection.classList.add('hidden');
+      }
+
+      const badge = document.getElementById('detail-badge');
+      if (paper.isOpenAccess) {
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800";
+        badge.textContent = "Open Access";
+      } else {
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700";
+        badge.textContent = "Peer-Reviewed";
+      }
+
+      const conceptsDiv = document.getElementById('detail-concepts');
+      const conceptsList = document.getElementById('detail-concepts-list');
+      if (paper.concepts && paper.concepts.length > 0) {
+        conceptsDiv.classList.remove('hidden');
+        conceptsList.innerHTML = paper.concepts.map(c => `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-medium">${c}</span>`).join('');
+      } else {
+        conceptsDiv.classList.add('hidden');
+      }
+
+      const paperIdx = idx;
+      document.getElementById('detail-cite-action').onclick = () => {
+        closeDetailModal();
+        setTimeout(() => openCiteModal(paperIdx), 300);
+      };
+
+      const openLink = document.getElementById('detail-open-link');
+      if (paper.doi) {
+        openLink.href = 'https://doi.org/' + paper.doi;
+      } else if (paper.openAlexId) {
+        openLink.href = paper.openAlexId;
+      } else {
+        openLink.href = '#';
+      }
+
+      const modal = document.getElementById('detail-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); sheet.classList.remove('translate-y-full'); }, 10);
+    }
+
+    function closeDetailModal() {
+      const modal = document.getElementById('detail-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      sheet.classList.add('translate-y-full');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 280);
+    }
+
+    let toastTimeout;
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+      toastMsg.textContent = msg;
+      toastIcon.className = type === 'error' ? 'fa-solid fa-exclamation-circle text-red-400' : 'fa-solid fa-check-circle text-emerald-400';
+      clearTimeout(toastTimeout);
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
