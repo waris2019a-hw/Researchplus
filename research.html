@@ -964,29 +964,9 @@
       setTimeout(() => modal.classList.add('hidden'), 280);
     }
 
-    let aiConfig = null;
-    const DEFAULT_AI_CONFIG = {
-      gemini: {
-        apiKey: "AIzaSyBW4WJu_aqbde4j5DrlsxA-blvrmFAsvjg",
-        model: "gemini-3.5-flash-lite",
-        maxOutputTokens: 8192,
-        temperature: 0.7
-      }
-    };
-
-    async function loadAIConfig() {
-      if (aiConfig) return aiConfig;
-      try {
-        const res = await fetch('/ai-config.json');
-        if (!res.ok) throw new Error('not found');
-        aiConfig = await res.json();
-        return aiConfig;
-      } catch (e) {
-        console.warn('Using default AI config');
-        aiConfig = DEFAULT_AI_CONFIG;
-        return aiConfig;
-      }
-    }
+    const AI_API_URL = "https://api.opentyphoon.ai/v1/chat/completions";
+    const AI_API_KEY = "sk-SqN2PzJd518MnD15lQysOg0N3nJtAdTOHwMR6LY1eipIQKfP";
+    const AI_MODEL = "typhoon-v2.5-30b-a3b-instruct";
 
     function openSummaryModal() {
       const modal = document.getElementById('summary-modal');
@@ -1028,13 +1008,13 @@
 
       loadingEl.classList.remove('hidden');
 
-      const config = await loadAIConfig();
-
       const abstractsText = papersWithAbstract.map((p, i) =>
         `=== Paper ${i + 1}: ${p.title} (${p.year || 'N/A'}) ===\n${p.abstract}\n`
       ).join('\n');
 
-      const prompt = `คุณเป็นผู้ช่วยวิจัยเชี่ยวชาญด้านการวิเคราะห์งานวิจัย กรุณาสรุปรวมบทคัดย่อ (abstract) ของงานวิจัยต่อไปนี้ โดยมีโครงสร้างดังนี้:
+      const systemMsg = `You are an AI research assistant specialized in analyzing academic papers. Respond in Thai. Use bullet points and subheadings for readability.`;
+
+      const userMsg = `กรุณาสรุปรวมบทคัดย่อ (abstract) ของงานวิจัยต่อไปนี้ โดยมีโครงสร้างดังนี้:
 
 1. **ภาพรวม (Overview)** - สรุปใจความสำคัญรวมของงานวิจัยทั้งหมด
 2. **หัวข้อหลัก (Key Themes)** - ระบุหัวข้อหรือแนวคิดหลักที่พบบ่อยในงานวิจัย
@@ -1042,26 +1022,29 @@
 4. **ข้อค้นพบที่น่าสนใจ (Notable Findings)** - ผลลัพธ์สำคัญที่โดดเด่น
 5. **ข้อเสนอแนะ (Suggestions)** - ทิศทางการวิจัยต่อเนื่องที่น่าสนใจ
 
-กรุณาตอบเป็นภาษาไทย ใช้รูปแบบ bullet points และหัวข้อย่อยเพื่อให้อ่านง่าย
-
 === บทคัดย่อของงานวิจัย ===
 ${abstractsText}`;
 
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: config.gemini.temperature,
-                maxOutputTokens: config.gemini.maxOutputTokens
-              }
-            })
-          }
-        );
+        const response = await fetch(AI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + AI_API_KEY
+          },
+          body: JSON.stringify({
+            model: AI_MODEL,
+            messages: [
+              { role: 'system', content: systemMsg },
+              { role: 'user', content: userMsg }
+            ],
+            temperature: 0.6,
+            max_completion_tokens: 4096,
+            top_p: 0.6,
+            frequency_penalty: 0,
+            stream: false
+          })
+        });
 
         const text = await response.text();
         loadingEl.classList.add('hidden');
@@ -1073,10 +1056,10 @@ ${abstractsText}`;
         }
 
         const data = JSON.parse(text);
+        const answer = data.choices?.[0]?.message?.content || '';
 
-        if (data.candidates && data.candidates[0]) {
-          const result = data.candidates[0].content.parts[0].text;
-          summaryText.textContent = result;
+        if (answer) {
+          summaryText.textContent = answer;
           summaryCount.textContent = papersWithAbstract.length;
           contentEl.classList.remove('hidden');
         } else if (data.error) {
