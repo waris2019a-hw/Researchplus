@@ -238,9 +238,14 @@
             <p class="text-[11px] text-slate-400 mt-1">บันทึกงานวิจัยอย่างน้อย 1 รายการเพื่อใช้ AI สรุป</p>
           </div>
           <div id="summary-content" class="hidden space-y-3">
-            <div class="flex items-center gap-2 text-[11px] text-slate-500 mb-2">
-              <i class="fa-solid fa-file-lines text-indigo-400"></i>
-              <span>วิเคราะห์จาก <span id="summary-count" class="font-bold text-indigo-600">0</span> บทคัดย่อ</span>
+            <div class="flex items-center justify-between text-[11px] text-slate-500 mb-2">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-file-lines text-indigo-400"></i>
+                <span>วิเคราะห์จาก <span id="summary-count" class="font-bold text-indigo-600">0</span> บทคัดย่อ</span>
+              </div>
+              <button onclick="copySummaryToClipboard()" class="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">
+                <i class="fa-regular fa-copy text-[10px]"></i> Copy
+              </button>
             </div>
             <div id="summary-text" class="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-4 rounded-xl border border-slate-200"></div>
           </div>
@@ -1074,6 +1079,21 @@ ${abstractsText}`;
         errorMsg.textContent = 'เชื่อมต่อ AI ไม่สำเร็จ: ' + error.message;
         errorEl.classList.remove('hidden');
       }
+    }
+
+    function copySummaryToClipboard() {
+      const text = document.getElementById('summary-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('คัดลอกบทสรุปเรียบร้อยแล้ว');
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('คัดลอกบทสรุปเรียบร้อยแล้ว');
+      });
     }
 
     let toastTimeout;
