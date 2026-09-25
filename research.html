@@ -67,6 +67,9 @@
           </button>
         </div>
       </div>
+      <div id="library-cat-container" class="hidden mt-3">
+        <div id="library-cat-chips" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+      </div>
     </header>
 
     <main class="flex-1 px-4 py-3">
@@ -305,6 +308,35 @@
       </div>
     </div>
 
+    <!-- Category Manager Modal -->
+    <div id="category-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden opacity-0 transition-opacity">
+      <div class="absolute inset-x-0 bottom-0 max-w-xl mx-auto bg-white rounded-t-3xl p-5 shadow-2xl drawer-transition translate-y-full flex flex-col max-h-[85vh]">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fa-solid fa-folder-tree text-indigo-600 text-xs"></i></div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-800">จัดการหมวดหมู่</h3>
+              <p class="text-[10px] text-slate-400">เพิ่ม เปลี่ยนชื่อ หรือลบหมวดของคลังงานวิจัย</p>
+            </div>
+          </div>
+          <button onclick="closeCategoryManager()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex gap-2 py-3">
+          <input type="text" id="new-category-input" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..."
+            class="flex-1 min-w-0 px-3 py-2.5 bg-slate-100 text-xs text-slate-800 placeholder-slate-400 rounded-xl border border-transparent focus:border-indigo-400 focus:bg-white outline-none transition-all"
+            onkeydown="if(event.key==='Enter') addCategory()">
+          <button onclick="addCategory()" class="px-4 py-2.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-100 hover:bg-indigo-700 transition flex items-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-plus text-[10px]"></i> เพิ่ม
+          </button>
+        </div>
+        <div id="category-list" class="overflow-y-auto flex-1 space-y-2 pr-1"></div>
+        <div class="pt-3 mt-2 border-t border-slate-100">
+          <button onclick="closeCategoryManager()" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs hover:bg-slate-200 transition">เสร็จสิ้น</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 transform translate-y-20 opacity-0 transition-all pointer-events-none">
       <i id="toast-icon" class="fa-solid fa-check-circle text-emerald-400"></i>
       <span id="toast-msg">ข้อความ</span>
@@ -343,6 +375,12 @@
       return db.ref('bookmarks/' + emailToKey(user.email));
     }
 
+    function getCategoriesRef() {
+      const user = getCurrentUser();
+      if (!user) return null;
+      return db.ref('categories/' + emailToKey(user.email));
+    }
+
     function paperToKey(paperId) {
       let hash = 0;
       for (let i = 0; i < paperId.length; i++) {
@@ -368,12 +406,19 @@
     let savedPapers = JSON.parse(localStorage.getItem('scholar_saved_papers') || '[]');
     let savedPaperData = JSON.parse(localStorage.getItem('scholar_saved_paper_data') || '{}');
     let useSemantic = false;
+    const DEFAULT_CATEGORY = 'ยังไม่จัดหมวดหมู่';
+    const DEFAULT_CATEGORIES = [DEFAULT_CATEGORY, 'อ่านภายหลัง', 'อ้างอิงในงานวิจัย', 'ทบทวนวรรณกรรม'];
+    let userCategories = JSON.parse(localStorage.getItem('scholar_categories') || 'null') || DEFAULT_CATEGORIES.slice();
+    let activeCategoryFilter = 'all';
 
     window.addEventListener('DOMContentLoaded', () => {
       updateSavedBadge();
       renderUserSection();
-      loadBookmarksFromFirebase().then(() => {
-        if (activeTab === 'library') renderLibrary();
+      normalizeCategoryList();
+      renderLibraryChips();
+      Promise.all([loadBookmarksFromFirebase(), loadCategoriesFromFirebase()]).then(() => {
+        renderLibraryChips();
+        if (activeTab === 'library') renderLibrary(false);
       });
     });
 
@@ -545,6 +590,8 @@
       const emptyEl = document.getElementById('empty-state');
       const papers = allResults;
 
+      if (activeTab !== 'library') resetEmptyState();
+
       if (papers.length === 0 && !isLoading) {
         listEl.innerHTML = '';
         emptyEl.classList.remove('hidden');
@@ -562,6 +609,8 @@
           ? `<span class="text-[9px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-medium border border-violet-200">Semantic Scholar</span>`
           : `<span class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium border border-blue-200">OpenAlex</span>`;
 
+        const categoryRow = activeTab === 'library' ? buildCategorySelect(paper) : '';
+
         return `
           <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
             <div class="flex items-center justify-between gap-2 mb-1.5">
@@ -574,6 +623,7 @@
                 <i class="${isSaved ? 'fa-solid' : 'fa-regular'} fa-bookmark text-sm"></i>
               </button>
             </div>
+            ${categoryRow}
             <h3 onclick="openDetailModal('${idx}')" class="font-bold text-slate-900 text-sm leading-snug cursor-pointer hover:text-indigo-600 transition">${highlightSearch(paper.title, currentSearchTerm)}</h3>
             <p class="text-xs text-slate-500 mt-1 line-clamp-1"><i class="fa-regular fa-user text-[11px] mr-1 text-slate-400"></i> ${paper.authors || 'Unknown authors'}</p>
             ${paper.venue ? `<p class="text-[11px] text-slate-400 italic mt-0.5 line-clamp-1">${paper.venue}</p>` : ''}
@@ -595,6 +645,27 @@
           </div>
         `;
       }).join('');
+
+      listEl.querySelectorAll('select.cat-select').forEach(sel => {
+        sel.addEventListener('click', e => e.stopPropagation());
+        sel.addEventListener('change', () => setPaperCategory(sel.dataset.paperId, sel.value));
+      });
+    }
+
+    function buildCategorySelect(paper) {
+      const current = getPaperCategory(paper);
+      const { list } = getLibraryCategories();
+      const options = list.map(c =>
+        `<option value="${escapeHtml(c)}"${c === current ? ' selected' : ''}>${escapeHtml(c)}</option>`
+      ).join('');
+      return `
+        <div class="flex items-center gap-1.5 mt-1.5 mb-1">
+          <i class="fa-solid fa-folder text-[10px] text-slate-400"></i>
+          <select class="cat-select max-w-[75%] truncate bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-600 rounded-lg px-2 py-1 outline-none focus:border-indigo-400 focus:bg-white cursor-pointer transition-all" data-paper-id="${escapeHtml(paper.id)}">
+            ${options}
+            <option value="__add__">+ เพิ่มหมวดหมู่...</option>
+          </select>
+        </div>`;
     }
 
     function reconstructAbstract(invIndex) {
@@ -656,12 +727,14 @@
       const searchContainer = document.getElementById('search-control-container');
       const exportBtn = document.getElementById('export-csv-btn');
       const summaryBtn = document.getElementById('ai-summary-btn');
+      const libCatContainer = document.getElementById('library-cat-container');
       if (tab === 'search') {
         searchBtn.classList.add('bg-indigo-50', 'text-indigo-600');
         searchBtn.classList.remove('text-slate-500');
         libBtn.classList.remove('bg-indigo-50', 'text-indigo-600');
         libBtn.classList.add('text-slate-500');
         searchContainer.classList.remove('hidden');
+        libCatContainer.classList.add('hidden');
         exportBtn.classList.add('hidden');
         summaryBtn.classList.add('hidden');
         renderPapers();
@@ -671,19 +744,60 @@
         searchBtn.classList.remove('bg-indigo-50', 'text-indigo-600');
         searchBtn.classList.add('text-slate-500');
         searchContainer.classList.add('hidden');
+        libCatContainer.classList.remove('hidden');
         exportBtn.classList.remove('hidden');
         summaryBtn.classList.remove('hidden');
         renderLibrary();
       }
     }
 
-    async function renderLibrary() {
-      await loadBookmarksFromFirebase();
-      allResults = savedPapers.map(id => savedPaperData[id]).filter(Boolean);
-      totalCount = allResults.length;
-      document.getElementById('results-count-text').textContent = `บทความที่บันทึกไว้ (${allResults.length})`;
+    async function renderLibrary(refresh = true) {
+      if (refresh) await loadBookmarksFromFirebase();
+      applyLibraryFilter();
+      renderLibraryChips();
+    }
+
+    function applyLibraryFilter() {
+      const all = savedPapers.map(id => savedPaperData[id]).filter(Boolean);
+      allResults = activeCategoryFilter === 'all'
+        ? all
+        : all.filter(p => getPaperCategory(p) === activeCategoryFilter);
+      totalCount = all.length;
+      document.getElementById('results-count-text').textContent = activeCategoryFilter === 'all'
+        ? `บทความที่บันทึกไว้ (${all.length})`
+        : `หมวด "${activeCategoryFilter}" (${allResults.length} จาก ${all.length})`;
       document.getElementById('welcome-state')?.classList.add('hidden');
+      if (allResults.length === 0 && all.length > 0 && activeCategoryFilter !== 'all') {
+        setEmptyState(`ไม่มีงานวิจัยในหมวด "${activeCategoryFilter}"`, 'เลือกหมวดอื่นจากแถบด้านบน หรือเพิ่มหมวดใหม่ได้', 'ดูทั้งหมด', "setCategoryFilter('all')");
+      } else {
+        resetEmptyState();
+      }
       renderPapers();
+    }
+
+    let emptyStateDefaults = null;
+
+    function setEmptyState(h3Text, pText, btnText, btnOnclick) {
+      const el = document.getElementById('empty-state');
+      if (!emptyStateDefaults) {
+        emptyStateDefaults = {
+          h: el.querySelector('h3').textContent,
+          p: el.querySelector('p').textContent,
+          b: el.querySelector('button').textContent,
+          o: el.querySelector('button').getAttribute('onclick')
+        };
+      }
+      el.querySelector('h3').textContent = h3Text;
+      el.querySelector('p').textContent = pText;
+      const btn = el.querySelector('button');
+      btn.textContent = btnText;
+      btn.setAttribute('onclick', btnOnclick);
+    }
+
+    function resetEmptyState() {
+      if (emptyStateDefaults) {
+        setEmptyState(emptyStateDefaults.h, emptyStateDefaults.p, emptyStateDefaults.b, emptyStateDefaults.o);
+      }
     }
 
     function exportCSV() {
@@ -735,25 +849,11 @@
         }
       } else {
         savedPapers.push(id);
-        if (paper) savedPaperData[id] = paper;
-        showToast('บันทึกลงคลังเรียบร้อย');
+        if (paper) savedPaperData[id] = Object.assign({}, paper, { category: DEFAULT_CATEGORY });
+        showToast('บันทึกลงคลังแล้ว • หมวด: ' + DEFAULT_CATEGORY);
         if (bookmarksRef && paper) {
           try {
-            await bookmarksRef.child(paperToKey(id)).set({
-              id: paper.id,
-              title: paper.title,
-              authors: paper.authors,
-              year: paper.year,
-              venue: paper.venue,
-              citations: paper.citations,
-              isOpenAccess: paper.isOpenAccess,
-              pdfUrl: paper.pdfUrl,
-              doi: paper.doi,
-              abstract: paper.abstract,
-              concepts: paper.concepts || [],
-              source: paper.source,
-              savedAt: new Date().toISOString()
-            });
+            await bookmarksRef.child(paperToKey(id)).set(bookmarkPayload(paper, DEFAULT_CATEGORY));
           } catch (e) { console.error(e); }
         } else if (!bookmarksRef) {
           console.log('Not logged in, saving to localStorage only');
@@ -762,7 +862,26 @@
       localStorage.setItem('scholar_saved_papers', JSON.stringify(savedPapers));
       localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
       updateSavedBadge();
-      if (activeTab === 'search') renderPapers(); else renderLibrary();
+      if (activeTab === 'search') renderPapers(); else renderLibrary(false);
+    }
+
+    function bookmarkPayload(p, category) {
+      return {
+        id: p.id,
+        title: p.title,
+        authors: p.authors,
+        year: p.year,
+        venue: p.venue,
+        citations: p.citations,
+        isOpenAccess: p.isOpenAccess,
+        pdfUrl: p.pdfUrl,
+        doi: p.doi,
+        abstract: p.abstract,
+        concepts: p.concepts || [],
+        source: p.source,
+        savedAt: p.savedAt || new Date().toISOString(),
+        category: category || DEFAULT_CATEGORY
+      };
     }
 
     async function loadBookmarksFromFirebase() {
@@ -777,7 +896,7 @@
           for (const [key, val] of Object.entries(data)) {
             if (val && val.id) {
               savedPapers.push(val.id);
-              savedPaperData[val.id] = val;
+              savedPaperData[val.id] = Object.assign({}, val, { category: val.category || DEFAULT_CATEGORY });
             }
           }
           localStorage.setItem('scholar_saved_papers', JSON.stringify(savedPapers));
@@ -791,6 +910,258 @@
 
     function updateSavedBadge() {
       document.getElementById('saved-badge').textContent = savedPapers.length;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function getPaperCategory(p) {
+      return p && p.category ? p.category : DEFAULT_CATEGORY;
+    }
+
+    function getLibraryCategories() {
+      const counts = {};
+      savedPapers.forEach(id => {
+        const cat = getPaperCategory(savedPaperData[id]);
+        counts[cat] = (counts[cat] || 0) + 1;
+      });
+      const list = userCategories.slice();
+      Object.keys(counts).forEach(c => {
+        if (!list.some(x => x.toLowerCase() === c.toLowerCase())) list.push(c);
+      });
+      return { list, counts };
+    }
+
+    function normalizeCategoryList() {
+      const out = [];
+      const seen = new Set();
+      const push = c => {
+        const t = String(c || '').trim();
+        if (!t) return;
+        const k = t.toLowerCase();
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push(t);
+      };
+      push(DEFAULT_CATEGORY);
+      (userCategories || []).forEach(push);
+      userCategories = out;
+    }
+
+    function renderLibraryChips() {
+      const el = document.getElementById('library-cat-chips');
+      if (!el) return;
+      const { list, counts } = getLibraryCategories();
+      if (activeCategoryFilter !== 'all' && !list.includes(activeCategoryFilter)) activeCategoryFilter = 'all';
+      const chips = [{ name: 'all', label: 'ทั้งหมด', count: savedPapers.length }]
+        .concat(list.map(c => ({ name: c, label: c, count: counts[c] || 0 })));
+      el.innerHTML = chips.map(chip => {
+        const active = activeCategoryFilter === chip.name;
+        return `<button data-cat="${escapeHtml(chip.name)}" class="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${active ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${escapeHtml(chip.label)}<span class="text-[10px] font-bold ${active ? 'text-indigo-200' : 'text-slate-400'}">${chip.count}</span></button>`;
+      }).join('') +
+      `<button id="manage-cat-btn" title="จัดการหมวดหมู่" class="shrink-0 w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition"><i class="fa-solid fa-gear text-[10px]"></i></button>`;
+      el.querySelectorAll('[data-cat]').forEach(btn => {
+        btn.addEventListener('click', () => setCategoryFilter(btn.dataset.cat));
+      });
+      const manageBtn = document.getElementById('manage-cat-btn');
+      if (manageBtn) manageBtn.addEventListener('click', () => openCategoryManager());
+    }
+
+    function setCategoryFilter(cat) {
+      activeCategoryFilter = cat;
+      if (activeTab === 'library') {
+        applyLibraryFilter();
+        renderLibraryChips();
+      }
+    }
+
+    async function setPaperCategory(id, cat) {
+      if (cat === '__add__') {
+        renderLibrary(false);
+        openCategoryManager(true);
+        return;
+      }
+      const data = savedPaperData[id];
+      if (!data) return;
+      const current = getPaperCategory(data);
+      if (current === cat) return;
+      data.category = cat;
+      localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
+      const ref = getBookmarksRef();
+      if (ref) {
+        try {
+          await ref.child(paperToKey(id)).set(bookmarkPayload(data, cat));
+        } catch (e) { console.error(e); }
+      }
+      showToast('เปลี่ยนหมวดเป็น "' + cat + '" แล้ว');
+      renderLibrary(false);
+    }
+
+    async function loadCategoriesFromFirebase() {
+      const ref = getCategoriesRef();
+      if (!ref) return;
+      try {
+        const snapshot = await ref.once('value');
+        const data = snapshot.val();
+        if (data) {
+          const arr = Array.isArray(data) ? data : Object.values(data);
+          const cleaned = arr.filter(c => typeof c === 'string' && c.trim());
+          if (cleaned.length) userCategories = cleaned;
+        }
+        normalizeCategoryList();
+        localStorage.setItem('scholar_categories', JSON.stringify(userCategories));
+        if (!data) ref.set(userCategories).catch(e => console.error('Error seeding categories:', e));
+      } catch (err) {
+        console.error('Error loading categories:', err);
+      }
+    }
+
+    function persistCategories() {
+      normalizeCategoryList();
+      localStorage.setItem('scholar_categories', JSON.stringify(userCategories));
+      const ref = getCategoriesRef();
+      if (ref) ref.set(userCategories).catch(e => console.error('Error saving categories:', e));
+    }
+
+    async function syncBookmarkCategories(ids, category) {
+      const ref = getBookmarksRef();
+      if (!ref || !ids.length) return;
+      const updates = {};
+      ids.forEach(id => {
+        const p = savedPaperData[id];
+        if (p) updates[paperToKey(id)] = bookmarkPayload(p, category);
+      });
+      if (!Object.keys(updates).length) return;
+      try { await ref.update(updates); } catch (e) { console.error(e); }
+    }
+
+    function addCategory() {
+      const input = document.getElementById('new-category-input');
+      const name = (input.value || '').trim();
+      if (!name) { showToast('พิมพ์ชื่อหมวดหมู่ก่อน', 'error'); return; }
+      if (userCategories.some(c => c.toLowerCase() === name.toLowerCase())) {
+        showToast('มีหมวดนี้อยู่แล้ว', 'error');
+        return;
+      }
+      userCategories.push(name);
+      persistCategories();
+      input.value = '';
+      showToast('เพิ่มหมวด "' + name + '" แล้ว');
+      renderCategoryList();
+      renderLibraryChips();
+    }
+
+    function renameCategory(oldName, rawName) {
+      const name = (rawName || '').trim();
+      if (!name || name === oldName) { renderCategoryList(); return; }
+      if (userCategories.some(c => c !== oldName && c.toLowerCase() === name.toLowerCase())) {
+        showToast('มีหมวดนี้อยู่แล้ว', 'error');
+        renderCategoryList();
+        return;
+      }
+      const idx = userCategories.indexOf(oldName);
+      if (idx >= 0) userCategories[idx] = name; else userCategories.push(name);
+      if (activeCategoryFilter === oldName) activeCategoryFilter = name;
+      const affected = savedPapers.filter(id => getPaperCategory(savedPaperData[id]) === oldName);
+      affected.forEach(id => { savedPaperData[id].category = name; });
+      localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
+      persistCategories();
+      syncBookmarkCategories(affected, name);
+      showToast('เปลี่ยนชื่อหมวดเรียบร้อย');
+      renderCategoryList();
+      renderLibraryChips();
+      if (activeTab === 'library') applyLibraryFilter();
+    }
+
+    function deleteCategory(cat) {
+      if (cat === DEFAULT_CATEGORY) return;
+      const affected = savedPapers.filter(id => getPaperCategory(savedPaperData[id]) === cat);
+      userCategories = userCategories.filter(c => c !== cat);
+      affected.forEach(id => { savedPaperData[id].category = DEFAULT_CATEGORY; });
+      localStorage.setItem('scholar_saved_paper_data', JSON.stringify(savedPaperData));
+      if (activeCategoryFilter === cat) activeCategoryFilter = 'all';
+      persistCategories();
+      syncBookmarkCategories(affected, DEFAULT_CATEGORY);
+      showToast('ลบหมวดแล้วย้าย ' + affected.length + ' รายการกลับ ' + DEFAULT_CATEGORY);
+      renderCategoryList();
+      renderLibraryChips();
+      if (activeTab === 'library') applyLibraryFilter();
+    }
+
+    function openCategoryManager(focusInput) {
+      renderCategoryList();
+      const modal = document.getElementById('category-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        sheet.classList.remove('translate-y-full');
+        if (focusInput) document.getElementById('new-category-input').focus();
+      }, 10);
+    }
+
+    function closeCategoryManager() {
+      const modal = document.getElementById('category-modal');
+      const sheet = modal.querySelector('.drawer-transition');
+      sheet.classList.add('translate-y-full');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 280);
+      renderLibraryChips();
+    }
+
+    function renderCategoryList() {
+      const el = document.getElementById('category-list');
+      if (!el) return;
+      const { list, counts } = getLibraryCategories();
+      el.innerHTML = list.map((cat, i) => {
+        const isDefault = cat === DEFAULT_CATEGORY;
+        const n = counts[cat] || 0;
+        return `
+          <div class="flex items-center gap-2.5 p-2.5 border border-slate-200 rounded-xl bg-slate-50/50" data-idx="${i}">
+            <div class="w-7 h-7 rounded-lg ${isDefault ? 'bg-slate-200 text-slate-600' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-[11px] font-bold shrink-0">${n}</div>
+            <div class="min-w-0 flex-1">
+              <p class="cat-name text-xs font-semibold text-slate-700 truncate">${escapeHtml(cat)}</p>
+              <p class="text-[10px] text-slate-400">${n} รายการ${isDefault ? ' · หมวดเริ่มต้น' : ''}</p>
+            </div>
+            <button data-action="rename" title="เปลี่ยนชื่อ" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-pen text-[10px]"></i></button>
+            ${isDefault ? '' : `<button data-action="delete" title="ลบหมวด" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-300 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>`}
+          </div>`;
+      }).join('');
+
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-idx]');
+          const cat = list[parseInt(row.dataset.idx, 10)];
+          if (!cat) return;
+          if (btn.dataset.action === 'rename') startRenameCategory(row, cat);
+          else deleteCategory(cat);
+        });
+      });
+    }
+
+    function startRenameCategory(row, cat) {
+      const nameEl = row.querySelector('.cat-name');
+      if (!nameEl || row.querySelector('input')) return;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = cat;
+      input.className = 'cat-name w-full text-xs font-semibold text-slate-800 bg-white rounded-lg px-2 py-1 outline-none border border-indigo-400';
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+      let done = false;
+      const commit = () => {
+        if (done) return;
+        done = true;
+        renameCategory(cat, input.value);
+      };
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') commit();
+        else if (e.key === 'Escape') { done = true; renderCategoryList(); }
+        e.stopPropagation();
+      });
+      input.addEventListener('blur', commit);
     }
 
     function handleSortChange(val) {
